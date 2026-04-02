@@ -31,6 +31,16 @@ def ingest_document(state: PeerReviewState):
     except Exception as e:
         return {"error": str(e)}
 
+def run_paper_summarizer(state: PeerReviewState):
+    agent = create_agents()["PaperSummarizer"]
+    # We pass the literature section as it contains the abstract & introduction
+    section_text = state["document_sections"].get("literature_review", "")
+    if not section_text:
+        return {"agent_reports": {"PaperSummarizer": "No introduction found."}}
+        
+    report = agent.review(section_text)
+    return {"agent_reports": {"PaperSummarizer": report}}
+
 def run_methodology_classifier(state: PeerReviewState):
     agent = create_agents()["MethodologyClassifier"]
     # Provide the methods section, which is typically sufficient to classify methodology
@@ -88,7 +98,7 @@ def synthesis_join(state: PeerReviewState):
     
     system_prompt = (
         "You are the Lead Scientific Orchestrator of an Advanced AI Peer Review Suite. "
-        "You will receive 5 specialized reviews of an academic paper. "
+        "You will receive 6 specialized reviews of an academic paper. "
         "Your task is to synthesize these into a comprehensive 'Verdict Report'. "
         "Note the Methodology Classifier's findings: if the paper is qualitative, you must "
         "adjust your expectations (e.g., lack of statistical testing is entirely normal). "
@@ -100,7 +110,7 @@ def synthesis_join(state: PeerReviewState):
     for agent_name, report in reports.items():
          human_prompt += f"--- {agent_name} Report ---\n{report}\n\n"
          
-    human_prompt += "Please provide the final synthesized Verdict Report, clearly sectioning out 'Strengths', 'Weaknesses', 'Agent Contradictions', and 'Final Recommendation'."
+    human_prompt += "Please provide the final synthesized Verdict Report, clearly sectioning out 'Paper Summary' (extracting insights from the Paper Summarizer), 'Strengths', 'Weaknesses', 'Agent Contradictions', and 'Final Recommendation'."
 
     try:
         system_msg = SystemMessage(content=system_prompt)
@@ -118,6 +128,7 @@ def build_workflow():
     workflow.add_node("Ingestion", ingest_document)
     
     # 2. Parallel Processing Agents
+    workflow.add_node("PaperSummarizer", run_paper_summarizer)
     workflow.add_node("MethodologyClassifier", run_methodology_classifier)
     workflow.add_node("ResultsAnalyst", run_results_analyst)
     workflow.add_node("Methodologist", run_methodologist)
@@ -131,6 +142,7 @@ def build_workflow():
     workflow.add_edge(START, "Ingestion")
     
     # Branching (parallel)
+    workflow.add_edge("Ingestion", "PaperSummarizer")
     workflow.add_edge("Ingestion", "MethodologyClassifier")
     workflow.add_edge("Ingestion", "ResultsAnalyst")
     workflow.add_edge("Ingestion", "Methodologist")
@@ -138,6 +150,7 @@ def build_workflow():
     workflow.add_edge("Ingestion", "CoherenceEditor")
     
     # Joining
+    workflow.add_edge("PaperSummarizer", "SynthesisJoin")
     workflow.add_edge("MethodologyClassifier", "SynthesisJoin")
     workflow.add_edge("ResultsAnalyst", "SynthesisJoin")
     workflow.add_edge("Methodologist", "SynthesisJoin")

@@ -28,6 +28,15 @@ class PeerReviewAgent:
 def create_agents():
     """Instantiate and return the enhanced specialized peer review agents."""
     
+    paper_summarizer = PeerReviewAgent(
+        name="Paper Summarizer",
+        role_description=(
+            "Read the introductory section and provide a concise, high-level summary of the paper. "
+            "Explain the core research question, what the study is trying to achieve, and its general context. "
+            "Write this so that a reader who has not seen the document can fully grasp its premise before reading the critique."
+        )
+    )
+    
     methodology_classifier = PeerReviewAgent(
         name="Methodology Classifier",
         role_description=(
@@ -82,6 +91,7 @@ def create_agents():
     )
     
     return {
+        "PaperSummarizer": paper_summarizer,
         "MethodologyClassifier": methodology_classifier,
         "ResultsAnalyst": results_analyst,
         "Methodologist": methodologist,
